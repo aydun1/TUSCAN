@@ -120,35 +120,31 @@ def read_bed_or_fa(input_name, input_type, has_name):
 
 def read_txt(input_name, input_type):
     s = OrderedDict()
-    z = 1
+    count = 1
     f = open(input_name, 'r')
     for line in f:
         line = line.rstrip()
         line = line.upper()
         if not all(i in VALID for i in line):
-            count = z
-            if (input_type == 'bed'):
-                count = z/2
-            eprint('The sequence at line {} contains an invalid nucleotide\n'.format(count))
+            eprint('The sequence at line {} contains an invalid nucleotide'.format(count))
         elif len(line) != 30:
-            eprint('The sequence at line {} is not 30 base pairs, it is {}\n'.format(z, len(line)))
+            eprint('The sequence at line {} is not 30 base pairs, it is {}'.format(count, len(line)))
         elif line[25:27] != 'GG':
             reverseLine = reverse_complement(line)
             if reverseLine[25:27] != 'GG':
-                eprint('The sequence at line {} does not have a PAM motif\n'.format(z))
+                eprint('The sequence at line {} does not have a PAM motif'.format(count))
             else:
-                s[z] = {}
-                s[z]['seq'] = reverseLine
-                s[z]['dir'] = '-'
-                eprint('The sequence at line {} was in the negative orientation\n'.format(z))
+                s[count] = {}
+                s[count]['seq'] = reverseLine
+                s[count]['dir'] = '-'
+                eprint('The sequence at line {} was in the negative orientation'.format(count))
         else:        
-            s[z] = {}    
-            s[z]['seq'] = line
-            s[z]['dir'] = '+'
-            z += 1
-    f.close
-    parsed_input_file = s
-    return parsed_input_file
+            s[count] = {}    
+            s[count]['seq'] = line
+            s[count]['dir'] = '+'
+            count += 1
+    f.close()
+    return s
 
 
 #Read in sequence data to create feature matrix

@@ -5,16 +5,17 @@
 
 # Can use a bed file, fasta file, or plain list of sequences
 
-import sys
-import FeatureMatrix
-import pickle
+from __future__ import print_function
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.externals import joblib
-import numpy
-import pybedtools
-import argparse
 from collections import OrderedDict
 import os
+import sys
+import argparse
+import FeatureMatrix
+import numpy
+import pickle
+import pybedtools
 
 #Valid DNA letters
 VALID = 'ACTG'

@@ -26,7 +26,6 @@ from collections import OrderedDict, namedtuple
 from multiprocessing import Process, Queue, cpu_count
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.externals import joblib
-from string import maketrans
 
 NucleotideLocation = namedtuple('NucleotideLocation', ['nucleotide', 'location'])
 
@@ -330,7 +329,7 @@ header = LAYOUT.format('Chrom', 'Start', 'End', 'Strand', 'Candidate_sgRNA', 'TU
 #Find and store all sequences + location information
 input_base = 'ATCG'
 output_base = 'TAGC'
-complement = maketrans(input_base, output_base)
+complement = str.maketrans(input_base, output_base)
 reverse_sequence = sequence.translate(complement)[::-1]
 
 matches = re.finditer(r'(?=([ACTG]{25}GG[ACTG]{3}))', sequence)

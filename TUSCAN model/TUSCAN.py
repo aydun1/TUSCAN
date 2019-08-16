@@ -20,7 +20,6 @@ import sys
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.externals import joblib
 import numpy
-import pybedtools
 import argparse
 from collections import OrderedDict, namedtuple
 import os
@@ -285,6 +284,7 @@ num_threads = args.t
 extract = args.e
 #if a chromosome, genome, start and stop positions are given
 if (extract):
+    import pybedtools
     print("Extracting region")
     #correct region info supplied
     gaveGenome = True

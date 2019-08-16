@@ -326,8 +326,9 @@ LAYOUT = '{!s:5} {!s:10} {!s:10} {!s:8} {!s:34} {!s:15}'
 header = LAYOUT.format('Chrom', 'Start', 'End', 'Strand', 'Candidate_sgRNA', 'TUSCAN_Score')
 
 #Find and store all sequences + location information
-complement = str.maketrans('ATCG', 'TAGC')
-reverse_sequence = sequence.translate(complement)[::-1]
+complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+reverse_sequence = ''.join(complement[base] for base in reversed(sequence))
+
 
 matches = re.finditer(r'(?=([ACTG]{25}GG[ACTG]{3}))', sequence)
 matches_rev = re.finditer(r'(?=([ACTG]{25}GG[ACTG]{3}))', reverse_sequence)

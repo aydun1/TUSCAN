@@ -16,16 +16,17 @@
 # NOTE: Final output will be in arbitrary order due to multithreading. 
 # Output is tab-separated and easy for users to manipulate using UNIX sort or other flavours. 
 
-import sys
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.externals import joblib
-import numpy
 import argparse
-from collections import OrderedDict, namedtuple
+import numpy
 import os
 import re
-from string import maketrans
+import sys
+
+from collections import OrderedDict, namedtuple
 from multiprocessing import Process, Queue, cpu_count
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+from sklearn.externals import joblib
+from string import maketrans
 
 NucleotideLocation = namedtuple('NucleotideLocation', ['nucleotide', 'location'])
 
@@ -213,15 +214,15 @@ def output_sequences(sequences, feature_lists, output_queue):
     output_queue.put('\n'.join(seq + '\t' + str(scores[i]) for i, seq in enumerate(sequences)))
 
 def score_sequences(matches_queue, output_queue, is_reverse):
-    strand = "-" if is_reverse else "+"
+    strand = '-' if is_reverse else '+'
     sequences = []
     feature_lists = []
     while True:
         match_start, sequence = matches_queue.get()
-        if match_start == "EMPTY":
+        if match_start == 'EMPTY':
             if sequences:
                 output_sequences(sequences, feature_lists, output_queue)
-            output_queue.put("DONE")
+            output_queue.put('DONE')
             break
         if is_reverse:
             sequence_end_pos = end - match_start - 3 - 1
@@ -243,7 +244,7 @@ def fill_queue(matches, matches_queue):
             match = next(matches)
         except StopIteration:
             for x in range(num_threads):
-                matches_queue.put(("EMPTY", "EMPTY"), block=True)
+                matches_queue.put(('EMPTY', 'EMPTY'), block=True)
             break
         matches_queue.put((match.start(), match.group(1)), block=True)
 
@@ -268,68 +269,67 @@ parser.add_argument('-e', required=False, action='store_true', help='If you want
 
 args = parser.parse_args()
 
-sequence = ""
+sequence = ''
 gaveGenome = False
 is_regression = False
-if args.m == "Regression":
+if args.m == 'Regression':
     is_regression = True
-elif args.m != "Classification":
-    print("Please specify Regression or Classification")
+elif args.m != 'Classification':
+    print('Please specify Regression or Classification')
     sys.exit()
 
-chrom = args.c if args.c else "N/A"
+chrom = args.c if args.c else 'N/A'
 genome = args.g
-output_file = args.o if args.o else "TUSCAN_output.txt"
+output_file = args.o if args.o else 'TUSCAN_output.txt'
 num_threads = args.t
 extract = args.e
 #if a chromosome, genome, start and stop positions are given
 if (extract):
     import pybedtools
-    print("Extracting region")
+    print('Extracting region')
     #correct region info supplied
     gaveGenome = True
     start = int(args.s)
     end = int(args.f)
     #turn region information into string and write to BED file
-    region = str(chrom + "\t" + str(start) + "\t" + str(end))
-    f = open("customRegion.bed", "w")
-    f.write(region)
-    f.close()
+    region = str(chrom + '\t' + str(start) + '\t' + str(end))
+    with open('customRegion.bed', 'w') as f:
+        f.write(region)
     #extract region of interest from genome
-    c = pybedtools.BedTool("customRegion.bed")
+    c = pybedtools.BedTool('customRegion.bed')
     d = c.sequence(fi = genome)
     with open(d.seqfn, 'r') as g:
         for line in g:
             line = line.rstrip()
-            if not line.startswith(">"):
+            if not line.startswith('>'):
                 sequence = str(line).upper()
-    os.remove("customRegion.bed")
+    os.remove('customRegion.bed')
 #else if a FASTA sequence has been nominated
 elif (genome):
     #extract from file:
-    print("Analysing entire supplied sequence.\nIf you wish to analyse a sub-region, supply start, end and chromosome flags and include the -e flag")
-    sequence = ""
+    print('Analysing entire supplied sequence.\nIf you wish to analyse a sub-region, supply start, end and chromosome flags and include the -e flag')
+    sequence = ''
     with open(genome, 'r') as g:
         for line in g:
             line = line.rstrip()
-            if not line.startswith(">"):
+            if not line.startswith('>'):
                 sequence += str(line).upper()
     start = int(args.s) - 1 if args.s else 0
     end = int(args.f) - 1 if args.f else len(sequence)
 else:
-    print("Please supply a sequence to be analysed")
+    print('Please supply a sequence to be analysed')
     sys.exit()
 
 if not sequence:
-    print("If using the extract -e flag, please supply ALL OF THESE and make sure they are correct: start, end AND chromosome flags")
+    print('If using the extract -e flag, please supply ALL OF THESE and make sure they are correct: start, end AND chromosome flags')
     sys.exit()
 
 LAYOUT = '{!s:5} {!s:10} {!s:10} {!s:8} {!s:34} {!s:15}'
 header = LAYOUT.format('Chrom', 'Start', 'End', 'Strand', 'Candidate_sgRNA', 'TUSCAN_Score')
 
 #Find and store all sequences + location information
-input_base = "ATCG"
-output_base = "TAGC"
+input_base = 'ATCG'
+output_base = 'TAGC'
 complement = maketrans(input_base, output_base)
 reverse_sequence = sequence.translate(complement)[::-1]
 
@@ -352,7 +352,7 @@ sequences = []
 output_queue = Queue()
 matches_queue = Queue(maxsize=num_threads*2)
 
-print("Analysing")
+print('Analysing')
 with open(str(output_file), 'w') as f:
     f.write(header+str('\n'))
 
@@ -366,11 +366,11 @@ with open(str(output_file), 'w') as f:
         num_done = 0
         while num_done < num_threads:
             output = output_queue.get()
-            if output == "DONE":
+            if output == 'DONE':
                 num_done += 1
             else:
                 f.write(output)
-                f.write("\n")
+                f.write('\n')
         matches_process.join()
         for process in processes:
             process.join()

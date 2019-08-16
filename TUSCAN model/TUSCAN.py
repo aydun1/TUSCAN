@@ -151,6 +151,7 @@ REGRESSION_DINUCLEOTIDES = [
 def gc(seq, features, index):
     features[index] = round((seq.count('C') + seq.count('G'))/float(len(seq)) * 100, 2)
 
+
 #counts appearance of dinucleotides in sequence
 def di_content(seq, dinucleotides_to_count, features, start_index):
     for idx, dinucleotide in enumerate(dinucleotides_to_count):
@@ -163,16 +164,19 @@ def di_content(seq, dinucleotides_to_count, features, start_index):
                 features[start_index+idx] = count
                 break
 
+
 #checks if specific PAM is present in sequence
 def pam(seq, features, index):
     if seq[24:28] == 'TGGT':
         features[index] = 1
+
 
 #checks if given position-specific nucleotides are present in sequence
 def nucleotide(seq, nucleotides_of_interest, features, start_index):
     for idx, nucleotide_loc in enumerate(nucleotides_of_interest):
         if seq[nucleotide_loc.location-1] == nucleotide_loc.nucleotide:
             features[start_index+idx] = 1
+
 
 #checks if given position-specific dinucleotides are present in sequence
 def dinucleotide(seq, dinucleotides_of_interest, features, start_index):
@@ -181,6 +185,7 @@ def dinucleotide(seq, dinucleotides_of_interest, features, start_index):
         location = dinucleotides_loc.location
         if seq[location-1:location+1] == dinucleotides_loc.dinucleotide:
             features[start_index+idx] = 1
+
 
 #generates a feature vector from a given 30 nucleotide sequence
 def get_features(seq, is_regression):
@@ -207,10 +212,12 @@ def get_features(seq, is_regression):
         dinucleotide(seq, CLASSIFICATION_DINUCLEOTIDES_OF_INTEREST, features, 33)
     return features
 
+
 def output_sequences(sequences, feature_lists, output_queue):
     feature_array = numpy.array(feature_lists)
     scores = rf.predict(feature_array)
     output_queue.put('\n'.join(seq + '\t' + str(scores[i]) for i, seq in enumerate(sequences)))
+
 
 def score_sequences(matches_queue, output_queue, is_reverse):
     strand = '-' if is_reverse else '+'
@@ -237,6 +244,7 @@ def score_sequences(matches_queue, output_queue, is_reverse):
             sequences = []
             feature_lists = []
 
+
 def fill_queue(matches, matches_queue):
     while True:
         try:
@@ -246,6 +254,7 @@ def fill_queue(matches, matches_queue):
                 matches_queue.put(('EMPTY', 'EMPTY'), block=True)
             break
         matches_queue.put((match.start(), match.group(1)), block=True)
+
 
 #collect directory
 dir = os.path.dirname(os.path.realpath(__file__))
@@ -269,7 +278,6 @@ parser.add_argument('-e', required=False, action='store_true', help='If you want
 args = parser.parse_args()
 
 sequence = ''
-gaveGenome = False
 is_regression = False
 if args.m == 'Regression':
     is_regression = True
@@ -286,33 +294,24 @@ extract = args.e
 if (extract):
     import pybedtools
     print('Extracting region')
-    #correct region info supplied
-    gaveGenome = True
-    start = int(args.s)
-    end = int(args.f)
+    start = args.s
+    end = args.f
     #turn region information into string and write to BED file
-    region = str(chrom + '\t' + str(start) + '\t' + str(end))
+    region = '{}\t{}\t{}'.format(chrom, start, end)
     with open('customRegion.bed', 'w') as f:
         f.write(region)
     #extract region of interest from genome
     c = pybedtools.BedTool('customRegion.bed')
     d = c.sequence(fi = genome)
     with open(d.seqfn, 'r') as g:
-        for line in g:
-            line = line.rstrip()
-            if not line.startswith('>'):
-                sequence = str(line).upper()
+        sequence = [line.rstrip().upper() for line in g if not line.startswith('>')][-1]
     os.remove('customRegion.bed')
 #else if a FASTA sequence has been nominated
 elif (genome):
     #extract from file:
     print('Analysing entire supplied sequence.\nIf you wish to analyse a sub-region, supply start, end and chromosome flags and include the -e flag')
-    sequence = ''
-    with open(genome, 'r') as g:
-        for line in g:
-            line = line.rstrip()
-            if not line.startswith('>'):
-                sequence += str(line).upper()
+    with open(genome, 'r') as f:
+        sequence = ''.join(line.rstrip().upper() for line in f if not line.startswith('>'))
     start = int(args.s) - 1 if args.s else 0
     end = int(args.f) - 1 if args.f else len(sequence)
 else:
@@ -327,9 +326,7 @@ LAYOUT = '{!s:5} {!s:10} {!s:10} {!s:8} {!s:34} {!s:15}'
 header = LAYOUT.format('Chrom', 'Start', 'End', 'Strand', 'Candidate_sgRNA', 'TUSCAN_Score')
 
 #Find and store all sequences + location information
-input_base = 'ATCG'
-output_base = 'TAGC'
-complement = str.maketrans(input_base, output_base)
+complement = str.maketrans('ATCG', 'TAGC')
 reverse_sequence = sequence.translate(complement)[::-1]
 
 matches = re.finditer(r'(?=([ACTG]{25}GG[ACTG]{3}))', sequence)
@@ -337,23 +334,20 @@ matches_rev = re.finditer(r'(?=([ACTG]{25}GG[ACTG]{3}))', reverse_sequence)
 
 # Load the appropriate model
 if is_regression:
-    rfm = dir + '/rfModelregressor.joblib'
-    with open(rfm, 'rb') as f:
-        rf = joblib.load(f)
+    rf_path = os.path.join(dir, 'rfModelregressor.joblib')
+    rf = joblib.load(rf_path)
 else:
-    rfm = dir + '/rfModelclassifier.joblib'
-    with open(rfm, 'rb') as f:
-        rf = joblib.load(f)
+    rf_path = os.path.join(dir, 'rfModelclassifier.joblib')
+    rf = joblib.load(rf_path)
 feature_lists = []
 sequences = []
-
 
 output_queue = Queue()
 matches_queue = Queue(maxsize=num_threads*2)
 
 print('Analysing')
-with open(str(output_file), 'w') as f:
-    f.write(header+str('\n'))
+with open(output_file, 'w') as f:
+    f.write(header + '\n')
 
     for is_reverse, match_type in enumerate((matches, matches_rev)):
         is_reverse = bool(is_reverse)

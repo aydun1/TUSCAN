@@ -335,12 +335,8 @@ def main():
     matches_rev = re.finditer(r'(?=([ACTG]{25}GG[ACTG]{3}))', reverse_sequence)
 
     # Load the appropriate model
-    if is_regression:
-        rf_path = os.path.join(dir, 'rfModelregressor.joblib')
-        rf = joblib.load(rf_path)
-    else:
-        rf_path = os.path.join(dir, 'rfModelclassifier.joblib')
-        rf = joblib.load(rf_path)
+    file_name = 'rfModelregressor.joblib' if is_regression else 'rfModelclassifier.joblib'
+    rf = joblib.load(os.path.join(dir, file_name))
     feature_lists = []
     sequences = []
 

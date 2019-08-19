@@ -22,9 +22,8 @@ import os
 import re
 import sys
 
-from collections import OrderedDict, namedtuple
+from collections import namedtuple
 from multiprocessing import Process, Queue, cpu_count
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.externals import joblib
 
 NucleotideLocation = namedtuple('NucleotideLocation', ['nucleotide', 'location'])
@@ -289,7 +288,7 @@ def main():
     num_threads = args.t
     extract = args.e
     #if a chromosome, genome, start and stop positions are given
-    if (extract):
+    if extract:
         import pybedtools
         print('Extracting region')
         start = args.s
@@ -305,7 +304,7 @@ def main():
             sequence = [line.rstrip().upper() for line in g if not line.startswith('>')][-1]
         os.remove('customRegion.bed')
     #else if a FASTA sequence has been nominated
-    elif (genome):
+    elif genome:
         #extract from file:
         print('Analysing entire supplied sequence.\nIf you wish to analyse a sub-region, supply start, end and chromosome flags and include the -e flag')
         with open(genome, 'r') as f:

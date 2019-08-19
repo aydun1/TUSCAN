@@ -26,7 +26,6 @@ from multiprocessing import Process, Queue, cpu_count
 from sklearn.externals import joblib
 
 NucleotideLocation = namedtuple('NucleotideLocation', ['nucleotide', 'location'])
-
 DinucleotideLocation = namedtuple('DinucleotideLocation', ['dinucleotide', 'location'])
 
 REGRESSION_NUCLEOTIDES_OF_INTEREST = (
@@ -145,9 +144,15 @@ REGRESSION_DINUCLEOTIDES = [
     'TT',
 ]
 
+
 #determines gc content of given sequence
 def gc(seq):
     return round((seq.count('C') + seq.count('G')) / len(seq) * 100, 2)
+
+
+def reverse_complement(seq):
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+    return ''.join(complement[base] for base in reversed(sequence))
 
 
 #counts appearance of dinucleotides in sequence
@@ -186,7 +191,7 @@ def dinucleotide(seq, dinucleotides_of_interest, features, start_index):
 
 
 #generates a feature vector from a given 30 nucleotide sequence
-def get_features(seq, is_regression):
+def get_features(seq):
     if is_regression:
         features = [0] * 63
         features[0] = gc(seq)
@@ -211,21 +216,21 @@ def get_features(seq, is_regression):
     return features
 
 
-def output_sequences(sequences, feature_lists, output_queue):
-    scores = rf.predict(feature_lists)
-    for i, seq in enumerate(sequences):
-        output_queue.put('{}\t{}'.format(seq, scores[i]))
+def output_sequences(sequences, metadata, output_queue):
+    scores = rf.predict([get_features(s) for s in sequences])
+    for m in zip(metadata, scores):
+        output_queue.put(m[0] + [m[1]])
 
 
 def score_sequences(matches_queue, output_queue, is_reverse):
     strand = '-' if is_reverse else '+'
     sequences = []
-    feature_lists = []
+    metadata = []
     while True:
         match_start, sequence = matches_queue.get()
         if match_start == 'EMPTY':
             if sequences:
-                output_sequences(sequences, feature_lists, output_queue)
+                output_sequences(sequences, metadata, output_queue)
             output_queue.put('DONE')
             break
         if is_reverse:
@@ -234,13 +239,13 @@ def score_sequences(matches_queue, output_queue, is_reverse):
         else:
             sequence_start_pos = start + match_start + 3 + 2
             sequence_end_pos = sequence_start_pos + 23 - 1
-        feature_list = get_features(sequence, is_regression)
-        sequences.append('{!s:5} {!s:10} {!s:10} {!s:8} {!s:31}'.format(chrom, sequence_start_pos, sequence_end_pos, strand, sequence[4:-3]))
-        feature_lists.append(feature_list)
+
+        sequences.append(sequence)
+        metadata.append([chrom, sequence_start_pos, sequence_end_pos, strand, sequence[4:-3]])
         if len(sequences) >= 10000:
-            output_sequences(sequences, feature_lists, output_queue)
+            output_sequences(sequences, metadata, output_queue)
             sequences = []
-            feature_lists = []
+            metadata = []
 
 
 def fill_queue(matches, matches_queue):
@@ -316,33 +321,25 @@ if __name__ == '__main__':
 
     if not sequence:
         print('If using the extract -e flag, please supply ALL OF THESE and make sure they are correct: start, end AND chromosome flags')
-        sys.exit()
-
-    LAYOUT = '{!s:5} {!s:10} {!s:10} {!s:8} {!s:34} {!s:15}'
-    header = LAYOUT.format('Chrom', 'Start', 'End', 'Strand', 'Candidate_sgRNA', 'TUSCAN_Score')
+        sys.exit() 
 
     #Find and store all sequences + location information
-    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
-    reverse_sequence = ''.join(complement[base] for base in reversed(sequence))
-
-
-    gre = re.compile(r'(?=([ACTG]{25}GG[ACTG]{3}))')
-    matches = gre.finditer(sequence)
-    matches_rev = gre.finditer(reverse_sequence)
+    guide_re = re.compile(r'(?=([ACTG]{25}GG[ACTG]{3}))')
+    matches = guide_re.finditer(sequence)
+    matches_rev = guide_re.finditer(reverse_complement(sequence))
     
     # Load the appropriate model
     file_path = os.path.dirname(os.path.realpath(__file__))
     file_name = 'rfModelregressor.joblib' if is_regression else 'rfModelclassifier.joblib'
     rf = joblib.load(os.path.join(file_path, file_name))
 
-
     output_queue = Queue()
     matches_queue = Queue(maxsize=num_threads*2)
 
     print('Analysing')
     with open(output_file, 'w') as f:
-        f.write(header + '\n')
-
+        layout = '{!s:5} {!s:10} {!s:10} {!s:8} {!s:34} {!s:15}\n'
+        f.write(layout.format('Chrom', 'Start', 'End', 'Strand', 'Candidate_sgRNA', 'TUSCAN_Score'))
         for is_reverse, match_type in enumerate((matches, matches_rev)):
             matches_process = Process(target=fill_queue, args=(match_type, matches_queue))
             matches_process.start()
@@ -355,8 +352,7 @@ if __name__ == '__main__':
                 if output == 'DONE':
                     num_done += 1
                 else:
-                    f.write(output)
-                    f.write('\n')
+                    f.write(layout.format(*output))
             matches_process.join()
             for process in processes:
                 process.join()

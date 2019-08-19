@@ -17,7 +17,6 @@
 # Output is tab-separated and easy for users to manipulate using UNIX sort or other flavours. 
 
 import argparse
-import numpy
 import os
 import re
 import sys
@@ -213,9 +212,9 @@ def get_features(seq, is_regression):
 
 
 def output_sequences(sequences, feature_lists, output_queue):
-    feature_array = numpy.array(feature_lists)
-    scores = rf.predict(feature_array)
-    output_queue.put('\n'.join(seq + '\t' + str(scores[i]) for i, seq in enumerate(sequences)))
+    scores = rf.predict(feature_lists)
+    for i, seq in enumerate(sequences):
+        output_queue.put('{}\t{}'.format(seq, scores[i]))
 
 
 def score_sequences(matches_queue, output_queue, is_reverse):
@@ -255,7 +254,7 @@ def fill_queue(matches, matches_queue):
         matches_queue.put((match.start(), match.group(1)), block=True)
 
 
-def main():
+if __name__ == '__main__':
     try:
         num_cores = cpu_count()
     except NotImplementedError:
@@ -336,8 +335,6 @@ def main():
     file_name = 'rfModelregressor.joblib' if is_regression else 'rfModelclassifier.joblib'
     rf = joblib.load(os.path.join(file_path, file_name))
 
-    feature_lists = []
-    sequences = []
 
     output_queue = Queue()
     matches_queue = Queue(maxsize=num_threads*2)
@@ -347,7 +344,6 @@ def main():
         f.write(header + '\n')
 
         for is_reverse, match_type in enumerate((matches, matches_rev)):
-            is_reverse = bool(is_reverse)
             matches_process = Process(target=fill_queue, args=(match_type, matches_queue))
             matches_process.start()
             processes = [Process(target=score_sequences, args=(matches_queue, output_queue, is_reverse)) for x in range(num_threads)]
@@ -364,7 +360,3 @@ def main():
             matches_process.join()
             for process in processes:
                 process.join()
-
-
-if __name__ == '__main__':
-    main()

@@ -148,8 +148,8 @@ REGRESSION_DINUCLEOTIDES = [
 ]
 
 #determines gc content of given sequence
-def gc(seq, features, index):
-    features[index] = round((seq.count('C') + seq.count('G'))/float(len(seq)) * 100, 2)
+def gc(seq):
+    return round((seq.count('C') + seq.count('G')) / len(seq) * 100, 2)
 
 
 #counts appearance of dinucleotides in sequence
@@ -191,7 +191,7 @@ def dinucleotide(seq, dinucleotides_of_interest, features, start_index):
 def get_features(seq, is_regression):
     if is_regression:
         features = [0] * 63
-        gc(seq, features, 0)
+        features[0] = gc(seq)
         features[1] = seq.count('A')
         features[2] = seq.count('C')
         features[3] = seq.count('G')
@@ -202,7 +202,7 @@ def get_features(seq, is_regression):
         pam(seq, features, 62)
     else:
         features = [0] * 46
-        gc(seq, features, 0)
+        features[0] = gc(seq)
         features[1] = seq.count('A')
         features[2] = seq.count('C')
         features[3] = seq.count('G')
@@ -237,7 +237,7 @@ def score_sequences(matches_queue, output_queue, is_reverse):
             sequence_start_pos = start + match_start + 3 + 2
             sequence_end_pos = sequence_start_pos + 23 - 1
         feature_list = get_features(sequence, is_regression)
-        sequences.append('{!s:5} {!s:10} {!s:10} {!s:8} {!s:31}'.format(chrom, str(sequence_start_pos), str(sequence_end_pos), strand, sequence[4:-3]))
+        sequences.append('{!s:5} {!s:10} {!s:10} {!s:8} {!s:31}'.format(chrom, sequence_start_pos, sequence_end_pos, strand, sequence[4:-3]))
         feature_lists.append(feature_list)
         if len(sequences) >= 10000:
             output_sequences(sequences, feature_lists, output_queue)
@@ -257,9 +257,6 @@ def fill_queue(matches, matches_queue):
 
 
 def main():
-    #collect directory
-    dir = os.path.dirname(os.path.realpath(__file__))
-
     try:
         num_cores = cpu_count()
     except NotImplementedError:
@@ -336,8 +333,10 @@ def main():
     matches_rev = gre.finditer(reverse_sequence)
     
     # Load the appropriate model
+    file_path = os.path.dirname(os.path.realpath(__file__))
     file_name = 'rfModelregressor.joblib' if is_regression else 'rfModelclassifier.joblib'
-    rf = joblib.load(os.path.join(dir, file_name))
+    rf = joblib.load(os.path.join(file_path, file_name))
+
     feature_lists = []
     sequences = []
 

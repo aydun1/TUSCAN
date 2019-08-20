@@ -231,7 +231,7 @@ def score_sequences(matches_queue, output_queue, is_reverse):
         if match_start is None:
             if sequences:
                 output_sequences(sequences, metadata, output_queue)
-            output_queue.put('DONE')
+            output_queue.put(None)
             break
         if is_reverse:
             sequence_end_pos = end - match_start - 3 - 1
@@ -345,7 +345,7 @@ if __name__ == '__main__':
             num_done = 0
             while num_done < num_threads:
                 output = output_queue.get()
-                if output == 'DONE':
+                if output is None:
                     num_done += 1
                 else:
                     f.write(layout.format(*output))

@@ -228,7 +228,7 @@ def score_sequences(matches_queue, output_queue, is_reverse):
     metadata = []
     while True:
         match_start, sequence = matches_queue.get()
-        if match_start == 'EMPTY':
+        if match_start is None:
             if sequences:
                 output_sequences(sequences, metadata, output_queue)
             output_queue.put('DONE')
@@ -249,14 +249,10 @@ def score_sequences(matches_queue, output_queue, is_reverse):
 
 
 def fill_queue(matches, matches_queue):
-    while True:
-        try:
-            match = next(matches)
-        except StopIteration:
-            for x in range(num_threads):
-                matches_queue.put(('EMPTY', 'EMPTY'), block=True)
-            break
-        matches_queue.put((match.start(), match.group(1)), block=True)
+    for m in matches:
+        matches_queue.put((m.start(), m.group(1)), block=True)
+    for x in range(num_threads):
+        matches_queue.put((None, None), block=True)
 
 
 if __name__ == '__main__':
